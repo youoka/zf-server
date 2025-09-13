@@ -17,6 +17,7 @@ func main() {
 	r.LoadHTMLGlob("./static/*")
 	staticGroup := r.Group("/push")
 	{
+		staticGroup.GET("/register", statics.Register)
 		staticGroup.GET("/push_order", statics.PushOrder)
 		staticGroup.GET("/login", statics.Login)
 		staticGroup.GET("/index", statics.Index)
