@@ -10,7 +10,9 @@ import (
 	_ "image/png"
 	"mime/multipart"
 	"net/http"
+	"net/url"
 	"time"
+	"zf-server/pkg/base_info"
 
 	"github.com/YuanJey/goutils2/pkg/utils"
 	"github.com/gin-gonic/gin"
@@ -25,56 +27,60 @@ import (
 // PushOrder 处理推送订单请求
 func PushOrder(c *gin.Context) {
 	operationID := utils.OperationIDGenerator()
-
-	// 从表单中获取金额参数
-	amountStr := c.PostForm("amount")
-	if amountStr == "" {
-		common.ApiErr(c, operationID, http.StatusBadRequest, "缺少金额参数")
+	req := base_info.PushOrderReq{}
+	if err := c.BindJSON(&req); err != nil {
+		common.ApiErr(c, operationID, 400, "参数错误"+err.Error())
 		return
 	}
-
-	// 解析金额
-	var amount float64
-	_, err := fmt.Sscanf(amountStr, "%f", &amount)
-	if err != nil || amount <= 0 {
-		common.ApiErr(c, operationID, http.StatusBadRequest, "金额参数无效")
+	//https://qr.alipay.com/_d?_b=peerpay&enableWK=YES&biz_no=2025091304200364641064636490_4adb46c73eb419ba5c4ce3ac222b7a48&app_name=tb&sc=qr_code&v=20250920&sign=c28a82&__webview_options__=pd%3dNO&channel=qr_code
+	userId := middleware.GetUserId(c)
+	urlParams, err2 := parseAlipayURLParams(req.URL)
+	if err2 != nil {
+		common.ApiErr(c, operationID, 401, "URL错误"+err2.Error())
 		return
 	}
-
-	// 从表单中获取二维码图片文件
-	file, err := c.FormFile("qrcode")
-	if err != nil {
-		common.ApiErr(c, operationID, http.StatusBadRequest, "缺少二维码图片文件: "+err.Error())
+	if _, ok := urlParams["biz_no"]; !ok {
+		common.ApiErr(c, operationID, 402, "URL错误")
 		return
 	}
-
-	// 解析二维码图片
-	qrContent, err := parseQRCode(file)
-	if err != nil {
-		common.ApiErr(c, operationID, http.StatusBadRequest, "二维码解析失败: "+err.Error())
-		return
-	}
-
-	// 获取当前用户ID
-	userID := middleware.GetUserId(c)
-
 	// 创建订单URL记录
 	orderURL := mysql_model_struct.OrderURL{
-		UserID:     userID,
-		Amount:     amount,
-		URL:        qrContent,
+		UserID:     userId,
+		Amount:     req.Amount, // Changed from amount to req.Amount
+		URL:        req.URL,
+		BizNo:      urlParams["biz_no"],
 		Status:     0,                                          // 0表示未使用
 		ExpireTime: time.Now().Add(72 * 60 * 60 * time.Second), // 3天后过期
 	}
 
 	// 保存到数据库
-	err = database.DB.MysqlDB.InstallOrderURL(&orderURL)
+	err := database.DB.MysqlDB.InstallOrderURL(&orderURL)
 	if err != nil {
 		common.ApiErr(c, operationID, http.StatusInternalServerError, "保存订单失败: "+err.Error())
 		return
 	}
 
-	common.ApiSuccess(c, operationID, "订单推送成功", qrContent)
+	common.ApiSuccess(c, operationID, "订单推送成功", req.URL)
+}
+func parseAlipayURLParams(urlString string) (map[string]string, error) {
+	// 解析URL
+	parsedURL, err := url.Parse(urlString)
+	if err != nil {
+		return nil, fmt.Errorf("解析URL失败: %v", err)
+	}
+
+	// 解析查询参数
+	params := parsedURL.Query()
+
+	// 转换为map[string]string
+	result := make(map[string]string)
+	for key, values := range params {
+		if len(values) > 0 {
+			result[key] = values[0] // 取第一个值
+		}
+	}
+
+	return result, nil
 }
 
 // parseQRCode 解析二维码图片，使用多种方法提高成功率

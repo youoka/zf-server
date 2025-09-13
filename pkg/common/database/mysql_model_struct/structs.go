@@ -30,6 +30,7 @@ func (b BalanceLog) TableName() string {
 type OrderURL struct {
 	ID         uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	UserID     string    `gorm:"column:user_id;type:varchar(64)" json:"userID"`
+	BizNo      string    `gorm:"column:biz_no;type:varchar(255);uniqueIndex" json:"biz_no"`
 	Amount     float64   `gorm:"column:amount;type:REAL" json:"amount"`
 	URL        string    `gorm:"column:url;type:varchar(2000)" json:"url"` //uniqueIndex
 	Status     int       `gorm:"column:status;type:int;default:0" json:"status"`
