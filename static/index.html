@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>用户中心</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Arial', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .container {
+      background: white;
+      padding: 2rem;
+      border-radius: 10px;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      max-width: 500px;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .header h1 {
+      color: #333;
+      margin-bottom: 0.5rem;
+    }
+
+    .header p {
+      color: #666;
+      font-size: 0.9rem;
+    }
+
+    .user-info {
+      background: #f8f9fa;
+      border-radius: 5px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .info-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid #eee;
+    }
+
+    .info-item:last-child {
+      border-bottom: none;
+    }
+
+    .info-label {
+      font-weight: 500;
+      color: #333;
+    }
+
+    .info-value {
+      color: #666;
+    }
+
+    .balance {
+      font-size: 1.2rem;
+      font-weight: bold;
+      color: #28a745;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 0.75rem;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: transform 0.2s;
+      text-align: center;
+      text-decoration: none;
+      display: block;
+      margin-bottom: 1rem;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .btn-secondary {
+      background: #6c757d;
+    }
+
+    .btn-secondary:hover {
+      background: #5a6268;
+    }
+
+    .alert {
+      padding: 0.75rem;
+      border-radius: 5px;
+      margin-bottom: 1rem;
+      display: none;
+    }
+
+    .alert-success {
+      background-color: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+
+    .alert-error {
+      background-color: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+
+    .nav {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 1.5rem;
+    }
+
+    .nav a {
+      color: #667eea;
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+
+    .nav a:hover {
+      text-decoration: underline;
+    }
+
+    .loading {
+      display: none;
+      text-align: center;
+      margin-top: 1rem;
+    }
+
+    .spinner {
+      border: 2px solid #f3f3f3;
+      border-top: 2px solid #667eea;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="nav">
+    <a href="/push/login">切换账户</a>
+    <a href="#" id="logoutLink">退出登录</a>
+  </div>
+
+  <div class="header">
+    <h1>用户中心</h1>
+    <p>欢迎回来</p>
+  </div>
+
+  <div id="alert" class="alert"></div>
+
+  <div class="user-info">
+    <div class="info-item">
+      <span class="info-label">用户ID:</span>
+      <span id="userId" class="info-value">-</span>
+    </div>
+    <div class="info-item">
+      <span class="info-label">手机号:</span>
+      <span id="phoneNumber" class="info-value">-</span>
+    </div>
+    <div class="info-item">
+      <span class="info-label">支付宝账户:</span>
+      <span id="zfbAccount" class="info-value">-</span>
+    </div>
+    <div class="info-item">
+      <span class="info-label">余额:</span>
+      <span id="balance" class="info-value balance">¥0.00</span>
+    </div>
+  </div>
+
+  <a href="/push/push_order" class="btn">推送订单</a>
+
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <p>加载中...</p>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const alertDiv = document.getElementById('alert');
+    const loadingDiv = document.getElementById('loading');
+    const logoutLink = document.getElementById('logoutLink');
+
+    // 显示提示信息
+    function showAlert(message, type) {
+      alertDiv.textContent = message;
+      alertDiv.className = 'alert alert-' + type;
+      alertDiv.style.display = 'block';
+
+      // 3秒后自动隐藏
+      setTimeout(() => {
+        alertDiv.style.display = 'none';
+      }, 3000);
+    }
+
+    // 显示加载状态
+    function showLoading() {
+      loadingDiv.style.display = 'block';
+    }
+
+    // 隐藏加载状态
+    function hideLoading() {
+      loadingDiv.style.display = 'none';
+    }
+
+    // 获取用户信息
+    function fetchUserInfo() {
+      showLoading();
+
+      fetch('/auth/info', {
+        method: 'GET',
+        headers: {
+          'Authorization': 'Bearer ' + localStorage.getItem('authToken')
+        }
+      })
+              .then(response => response.json())
+              .then(data => {
+                hideLoading();
+
+                if (data.code === 200) {
+                  // 填充用户信息
+                  document.getElementById('userId').textContent = data.data.userID || '-';
+                  document.getElementById('phoneNumber').textContent = data.data.phoneNumber || '-';
+                  document.getElementById('zfbAccount').textContent = data.data.zfbAccount || '-';
+                  document.getElementById('balance').textContent = '¥' + (data.data.balance || '0.00');
+                } else {
+                  showAlert(data.msg || '获取用户信息失败', 'error');
+                }
+              })
+              .catch(error => {
+                hideLoading();
+                showAlert('网络错误，请稍后重试', 'error');
+                console.error('Fetch user info error:', error);
+              });
+    }
+
+    // 退出登录
+    logoutLink.addEventListener('click', function(e) {
+      e.preventDefault();
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('userInfo');
+      window.location.href = '/push/login';
+    });
+
+    // 检查是否有token，如果没有则跳转到登录页面
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      window.location.href = '/push/login';
+    } else {
+      // 获取用户信息
+      fetchUserInfo();
+    }
+  });
+</script>
+</body>
+</html>

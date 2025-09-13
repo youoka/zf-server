@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>推送订单</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Arial', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .container {
+      background: white;
+      padding: 2rem;
+      border-radius: 10px;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+      width: 100%;
+      max-width: 500px;
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .header h1 {
+      color: #333;
+      margin-bottom: 0.5rem;
+    }
+
+    .header p {
+      color: #666;
+      font-size: 0.9rem;
+    }
+
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      color: #333;
+      font-weight: 500;
+    }
+
+    .form-group input, .form-group textarea {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      font-size: 1rem;
+      transition: border-color 0.3s;
+    }
+
+    .form-group input:focus, .form-group textarea:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+    }
+
+    .file-input-wrapper {
+      position: relative;
+      overflow: hidden;
+      display: inline-block;
+      width: 100%;
+    }
+
+    .file-input-wrapper input[type=file] {
+      position: absolute;
+      left: 0;
+      top: 0;
+      opacity: 0;
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
+    }
+
+    .file-input-button {
+      display: inline-block;
+      padding: 0.75rem 1.5rem;
+      background: #f0f0f0;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+      color: #333;
+      cursor: pointer;
+      transition: background 0.3s;
+      width: 100%;
+      text-align: center;
+    }
+
+    .file-input-button:hover {
+      background: #e0e0e0;
+    }
+
+    .file-name {
+      margin-top: 0.5rem;
+      font-size: 0.9rem;
+      color: #666;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 0.75rem;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    .btn:hover {
+      transform: translateY(-2px);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-secondary {
+      background: #6c757d;
+    }
+
+    .btn-secondary:hover {
+      background: #5a6268;
+    }
+
+    .alert {
+      padding: 0.75rem;
+      border-radius: 5px;
+      margin-bottom: 1rem;
+      display: none;
+    }
+
+    .alert-success {
+      background-color: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+
+    .alert-error {
+      background-color: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+
+    .preview-container {
+      margin-top: 1rem;
+      text-align: center;
+    }
+
+    .preview-image {
+      max-width: 100%;
+      max-height: 200px;
+      display: none;
+      margin: 0 auto;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 1rem;
+    }
+
+    .actions .btn {
+      flex: 1;
+    }
+
+    .loading {
+      display: none;
+      text-align: center;
+      margin-top: 1rem;
+    }
+
+    .spinner {
+      border: 2px solid #f3f3f3;
+      border-top: 2px solid #667eea;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .nav {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 1.5rem;
+    }
+
+    .nav a {
+      color: #667eea;
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+
+    .nav a:hover {
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="nav">
+    <a href="/pull/login">切换账户</a>
+    <a href="#" id="logoutLink">退出登录</a>
+  </div>
+
+  <div class="header">
+    <h1>推送订单</h1>
+    <p>上传二维码并设置金额</p>
+  </div>
+
+  <div id="alert" class="alert"></div>
+
+  <form id="pushOrderForm">
+    <div class="form-group">
+      <label for="amount">订单金额 (元)</label>
+      <input type="number" id="amount" name="amount" step="0.01" min="0.01" required placeholder="请输入订单金额">
+    </div>
+
+    <div class="form-group">
+      <label for="qrcode">二维码图片</label>
+      <div class="file-input-wrapper">
+        <div class="file-input-button">
+          选择二维码图片
+        </div>
+        <input type="file" id="qrcode" name="qrcode" accept="image/*" required>
+      </div>
+      <div class="file-name" id="fileName">未选择文件</div>
+    </div>
+
+    <div class="preview-container">
+      <img id="preview" class="preview-image" alt="二维码预览">
+    </div>
+
+    <div class="actions">
+      <button type="button" id="previewBtn" class="btn btn-secondary">预览二维码</button>
+      <button type="submit" class="btn" id="submitBtn">推送订单</button>
+    </div>
+  </form>
+
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <p>正在处理中...</p>
+  </div>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const pushOrderForm = document.getElementById('pushOrderForm');
+    const alertDiv = document.getElementById('alert');
+    const loadingDiv = document.getElementById('loading');
+    const submitBtn = document.getElementById('submitBtn');
+    const qrcodeInput = document.getElementById('qrcode');
+    const fileNameDiv = document.getElementById('fileName');
+    const previewImage = document.getElementById('preview');
+    const previewBtn = document.getElementById('previewBtn');
+    const logoutLink = document.getElementById('logoutLink');
+
+    // 显示提示信息
+    function showAlert(message, type) {
+      alertDiv.textContent = message;
+      alertDiv.className = 'alert alert-' + type;
+      alertDiv.style.display = 'block';
+
+      // 3秒后自动隐藏
+      setTimeout(() => {
+        alertDiv.style.display = 'none';
+      }, 3000);
+    }
+
+    // 显示加载状态
+    function showLoading() {
+      loadingDiv.style.display = 'block';
+      submitBtn.disabled = true;
+      submitBtn.textContent = '推送中...';
+    }
+
+    // 隐藏加载状态
+    function hideLoading() {
+      loadingDiv.style.display = 'none';
+      submitBtn.disabled = false;
+      submitBtn.textContent = '推送订单';
+    }
+
+    // 文件选择事件处理
+    qrcodeInput.addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (file) {
+        fileNameDiv.textContent = file.name;
+
+        // 显示图片预览
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          previewImage.src = e.target.result;
+          previewImage.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+      } else {
+        fileNameDiv.textContent = '未选择文件';
+        previewImage.style.display = 'none';
+      }
+    });
+
+    // 预览二维码
+    previewBtn.addEventListener('click', function() {
+      const file = qrcodeInput.files[0];
+      if (!file) {
+        showAlert('请先选择二维码图片', 'error');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        previewImage.src = e.target.result;
+        previewImage.style.display = 'block';
+        showAlert('二维码已加载，检查无误后可推送订单', 'success');
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // 推送订单表单提交处理
+    pushOrderForm.addEventListener('submit', function(e) {
+      e.preventDefault();
+
+      const amount = document.getElementById('amount').value;
+      const qrcodeFile = qrcodeInput.files[0];
+
+      if (!amount || amount <= 0) {
+        showAlert('请输入有效的订单金额', 'error');
+        return;
+      }
+
+      if (!qrcodeFile) {
+        showAlert('请选择二维码图片', 'error');
+        return;
+      }
+
+      showLoading();
+
+      // 创建FormData对象
+      const formData = new FormData();
+      formData.append('amount', amount);
+      formData.append('qrcode', qrcodeFile);
+
+      // 发送推送订单请求
+      fetch('/order/push', {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Authorization': 'Bearer ' + localStorage.getItem('authToken')
+        }
+      })
+              .then(response => response.json())
+              .then(data => {
+                hideLoading();
+
+                if (data.code === 200) {
+                  showAlert('订单推送成功', 'success');
+                  // 清空表单
+                  pushOrderForm.reset();
+                  fileNameDiv.textContent = '未选择文件';
+                  previewImage.style.display = 'none';
+                } else {
+                  showAlert(data.msg || '订单推送失败', 'error');
+                }
+              })
+              .catch(error => {
+                hideLoading();
+                showAlert('网络错误，请稍后重试', 'error');
+                console.error('Push order error:', error);
+              });
+    });
+
+    // 退出登录
+    logoutLink.addEventListener('click', function(e) {
+      e.preventDefault();
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('userInfo');
+      window.location.href = '/push/login';
+    });
+
+    // 检查是否有token，如果没有则跳转到登录页面
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      window.location.href = '/push/login';
+    }
+  });
+</script>
+</body>
+</html>

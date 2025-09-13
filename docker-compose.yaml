@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:latest
+    ports:
+      - 13306:3306
+    container_name: mysql
+    volumes:
+      - ${DATA_DIR}/components/mysql/data:/var/lib/mysql
+      - /etc/localtime:/etc/localtime
+    environment:
+      MYSQL_ROOT_PASSWORD: ${PASSWORD}
+    networks:
+      - demo_network
+    restart: always
+
+  redis:
+    image: redis:latest
+    container_name: redis
+    ports:
+      - "16379:6379"
+    networks:
+      - demo_network
+    restart: always
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    container_name: zf-server
+    depends_on:
+      - mysql
+      - redis
+    networks:
+      - demo_network
+    environment:
+      - ZF_PULL_PORT=8080
+
+networks:
+  demo_network:
+    driver: bridge
