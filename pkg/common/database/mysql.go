@@ -24,6 +24,9 @@ func (w Writer) Printf(format string, args ...interface{}) {
 }
 
 func initMysqlDB() {
+	if config.Config.Server.Cluster == "0" {
+		config.Config.Mysql.DBAddress[0] = config.Config.Mysql.Addr
+	}
 	dsn := fmt.Sprintf("%s:%s@tcp(%s)/%s?charset=utf8mb4&parseTime=true&loc=Local",
 		config.Config.Mysql.DBUserName, config.Config.Mysql.DBPassword, config.Config.Mysql.DBAddress[0], "mysql")
 	var db *gorm.DB

@@ -38,6 +38,9 @@ services:
       - demo_network
     environment:
       - ZF_PULL_PORT=8080
+      - ZF_PULL_CLUSTER=0
+      - MYSQL_ADDR=mysql:3306
+      - REDIS_ADDR=redis:6379
 
 networks:
   demo_network:

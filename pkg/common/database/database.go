@@ -22,7 +22,7 @@ func init() {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	if config.Config.Redis.EnableCluster {
+	if config.Config.Server.Cluster == "1" {
 		DB.RDB = go_redis.NewClusterClient(&go_redis.ClusterOptions{
 			Addrs:    config.Config.Redis.DBAddress,
 			Username: config.Config.Redis.DBUserName,
@@ -36,7 +36,7 @@ func init() {
 		}
 	} else {
 		DB.RDB = go_redis.NewClient(&go_redis.Options{
-			Addr:     config.Config.Redis.DBAddress[0],
+			Addr:     config.Config.Redis.Addr,
 			Username: config.Config.Redis.DBUserName,
 			Password: config.Config.Redis.DBPassWord, // no password set
 			DB:       0,                              // use default DB

@@ -6,10 +6,12 @@ var Config config
 
 type config struct {
 	Server struct {
-		Port string `yaml:"port" env:"ZF_PULL_PORT"`
+		Port    string `yaml:"port" env:"ZF_PULL_PORT"`
+		Cluster string `yaml:"cluster" env:"ZF_PULL_CLUSTER"`
 	} `yaml:"server"`
 	Mysql struct {
-		DBAddress      []string `yaml:"dbMysqlAddress" env:"MYSQL_ADDRESS"`
+		Addr           string   `yaml:"addr"  env:"MYSQL_ADDR"`
+		DBAddress      []string `yaml:"dbMysqlAddress"`
 		DBUserName     string   `yaml:"dbMysqlUserName" env:"MYSQL_USERNAME"`
 		DBPassword     string   `yaml:"dbMysqlPassword" env:"MYSQL_PASSWORD"`
 		DBDatabaseName string   `yaml:"dbMysqlDatabaseName"`
@@ -20,6 +22,7 @@ type config struct {
 		SlowThreshold  int      `yaml:"slowThreshold"`
 	} `yaml:"mysql"`
 	Redis struct {
+		Addr          string   `yaml:"addr"  env:"REDIS_ADDR"`
 		DBAddress     []string `yaml:"dbAddress"`
 		DBMaxIdle     int      `yaml:"dbMaxIdle"`
 		DBMaxActive   int      `yaml:"dbMaxActive"`
