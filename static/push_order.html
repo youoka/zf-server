@@ -223,6 +223,17 @@
     .nav a:hover {
       text-decoration: underline;
     }
+    #imageWrap{
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #imageWrap>img{
+      display: block !important;
+      width: 100px !important;
+      height: 100px !important;
+      margin: 0 auto;
+    }
   </style>
 </head>
 <body>
@@ -253,11 +264,11 @@
         </div>
         <input type="file" id="qrcode" name="qrcode" accept="image/*" required>
       </div>
-      <div class="file-name" id="fileName">未选择文件</div>
+      <div class="file-name" id="fileName" style="word-break: break-all;">未选择文件</div>
     </div>
 
-    <div class="preview-container">
-      <img id="preview" class="preview-image" alt="二维码预览">
+    <div class="preview-container" id="imageWrap">
+      <!-- <img id="preview" class="preview-image" alt="二维码预览"> -->
     </div>
 
     <div class="actions">
@@ -265,14 +276,20 @@
       <button type="submit" class="btn" id="submitBtn">推送订单</button>
     </div>
   </form>
-
+  <div class="canvasInput-wrap" style="position: fixed;z-index: -1;top:-99999999999px;">
+    <canvas id="canvasInput"></canvas>
+  </div>
   <div class="loading" id="loading">
     <div class="spinner"></div>
     <p>正在处理中...</p>
   </div>
 </div>
-
+<script src="./modules/opencv/dist/OpencvQr.js"></script>
 <script>
+  const cvQr = new OpencvQr({
+    dw: "https://leidenglai.github.io/opencv-js-qrcode/models/detect.caffemodel",
+    sw: "https://leidenglai.github.io/opencv-js-qrcode/models/sr.caffemodel",
+  });
   document.addEventListener('DOMContentLoaded', function() {
     const pushOrderForm = document.getElementById('pushOrderForm');
     const alertDiv = document.getElementById('alert');
@@ -327,7 +344,54 @@
         fileNameDiv.textContent = '未选择文件';
         previewImage.style.display = 'none';
       }
+      qrcodeHandleFiles(e)
+
     });
+
+    function qrcodeHandleFiles(e) {
+      const file = e.target.files[0];
+      const qrcodeUrl = URL.createObjectURL(file);
+      loadImageToCanvas(qrcodeUrl, "canvasInput");
+    }
+    function loadImageToCanvas(url, cavansId) {
+      let canvas = document.getElementById(cavansId);
+      let ctx = canvas.getContext("2d");
+      let img = new Image();
+
+      img.crossOrigin = "anonymous";
+      img.onload = function () {
+        const { width, height } = img;
+
+        canvas.width = width;
+        canvas.height = height;
+        ctx?.drawImage(img, 0, 0, width, height);
+
+        setTimeout(()=>{
+          const result = cvQr.load("canvasInput");
+          const infos = result?.getInfos();
+          document.getElementById("fileName").innerText = JSON.stringify(infos);
+          const images = result?.getImages();
+          // 识别的imageData填充页面
+          images?.forEach((imgData) => {
+            const image = imagedataToImage(imgData);
+            document.getElementById("imageWrap").append(image);
+          });
+        },1000)
+      };
+      img.src = url;
+    }
+    function imagedataToImage(imagedata) {
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      canvas.width = imagedata.width;
+      canvas.height = imagedata.height;
+      ctx.putImageData(imagedata, 0, 0);
+
+      const image = new Image();
+
+      image.src = canvas.toDataURL();
+      return image;
+    }
 
     // 预览二维码
     previewBtn.addEventListener('click', function() {
