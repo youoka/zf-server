@@ -15,6 +15,7 @@ func main() {
 	r := gin.New()
 	r.Use(gin.Recovery())
 	r.LoadHTMLGlob("./static/*")
+	r.Static("/tools", "./tools")
 	staticGroup := r.Group("/push")
 	{
 		staticGroup.GET("/register", statics.Register)
