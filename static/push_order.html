@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>推送订单</title>
-<script src="https://www.cuteax.cn/testd/dist/OpencvQr.js"></script>
+  <script src="https://www.cuteax.cn/testd/dist/OpencvQr.js"></script>
 
   <style>
     * {
@@ -111,6 +111,7 @@
       margin-top: 0.5rem;
       font-size: 0.9rem;
       color: #666;
+      word-break: break-all;
     }
 
     .btn {
@@ -183,6 +184,7 @@
     .actions {
       display: flex;
       gap: 1rem;
+      margin-top: 1rem;
     }
 
     .actions .btn {
@@ -225,23 +227,47 @@
     .nav a:hover {
       text-decoration: underline;
     }
-    #imageWrap{
+
+    #imageWrap {
       display: flex;
       align-items: center;
       justify-content: center;
+      margin-top: 1rem;
     }
-    #imageWrap>img{
+
+    #imageWrap > img {
       display: block !important;
-      width: 100px !important;
-      height: 100px !important;
+      max-width: 200px !important;
+      max-height: 200px !important;
       margin: 0 auto;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+
+    .qr-result {
+      margin-top: 1rem;
+      padding: 1rem;
+      background-color: #f8f9fa;
+      border-radius: 5px;
+      word-break: break-all;
+    }
+
+    .qr-result-title {
+      font-weight: bold;
+      margin-bottom: 0.5rem;
+      color: #333;
+    }
+
+    .qr-result-content {
+      color: #666;
+      font-size: 0.9rem;
     }
   </style>
 </head>
 <body>
 <div class="container">
   <div class="nav">
-    <a href="/pull/login">切换账户</a>
+    <a href="/push/login">切换账户</a>
     <a href="#" id="logoutLink">退出登录</a>
   </div>
 
@@ -266,32 +292,43 @@
         </div>
         <input type="file" id="qrcode" name="qrcode" accept="image/*" required>
       </div>
-      <div class="file-name" id="fileName" style="word-break: break-all;">未选择文件</div>
+      <div class="file-name" id="fileName">未选择文件</div>
     </div>
 
     <div class="preview-container" id="imageWrap">
-      <!-- <img id="preview" class="preview-image" alt="二维码预览"> -->
+      <!-- 解析后的二维码图片将显示在这里 -->
+    </div>
+
+    <div id="qrResult" class="qr-result" style="display: none;">
+      <div class="qr-result-title">解析结果:</div>
+      <div class="qr-result-content" id="qrContent"></div>
     </div>
 
     <div class="actions">
-      <button type="button" id="previewBtn" class="btn btn-secondary">预览二维码</button>
+      <button type="button" id="previewBtn" class="btn btn-secondary">解析二维码</button>
       <button type="submit" class="btn" id="submitBtn">推送订单</button>
     </div>
   </form>
-  <div class="canvasInput-wrap" style="position: fixed;z-index: -1;top:-99999999999px;">
+
+  <div class="canvasInput-wrap" style="position: fixed; z-index: -1; top: -999999999px;">
     <canvas id="canvasInput"></canvas>
   </div>
+
   <div class="loading" id="loading">
     <div class="spinner"></div>
     <p>正在处理中...</p>
   </div>
 </div>
+
 <script>
   const cvQr = new OpencvQr({
     dw: "https://leidenglai.github.io/opencv-js-qrcode/models/detect.caffemodel",
     sw: "https://leidenglai.github.io/opencv-js-qrcode/models/sr.caffemodel",
   });
-  let infosurl="";
+
+  let parsedQRCode = "";
+  let parsedQRImage = null;
+
   document.addEventListener('DOMContentLoaded', function() {
     const pushOrderForm = document.getElementById('pushOrderForm');
     const alertDiv = document.getElementById('alert');
@@ -299,9 +336,11 @@
     const submitBtn = document.getElementById('submitBtn');
     const qrcodeInput = document.getElementById('qrcode');
     const fileNameDiv = document.getElementById('fileName');
-    const previewImage = document.getElementById('preview');
     const previewBtn = document.getElementById('previewBtn');
     const logoutLink = document.getElementById('logoutLink');
+    const qrResult = document.getElementById('qrResult');
+    const qrContent = document.getElementById('qrContent');
+    const imageWrap = document.getElementById('imageWrap');
 
     // 显示提示信息
     function showAlert(message, type) {
@@ -319,6 +358,7 @@
     function showLoading() {
       loadingDiv.style.display = 'block';
       submitBtn.disabled = true;
+      previewBtn.disabled = true;
       submitBtn.textContent = '推送中...';
     }
 
@@ -326,6 +366,7 @@
     function hideLoading() {
       loadingDiv.style.display = 'none';
       submitBtn.disabled = false;
+      previewBtn.disabled = false;
       submitBtn.textContent = '推送订单';
     }
 
@@ -334,28 +375,25 @@
       const file = e.target.files[0];
       if (file) {
         fileNameDiv.textContent = file.name;
-
-        // 显示图片预览
-        const reader = new FileReader();
-        reader.onload = function(e) {
-          // previewImage.src = e.target.result;
-          // previewImage.style.display = 'block';
-        };
-        reader.readAsDataURL(file);
+        // 重置之前的解析结果
+        parsedQRCode = "";
+        parsedQRImage = null;
+        qrResult.style.display = 'none';
+        imageWrap.innerHTML = '';
       } else {
         fileNameDiv.textContent = '未选择文件';
-        // previewImage.style.display = 'none';
       }
-      qrcodeHandleFiles(e)
-
     });
 
-    function qrcodeHandleFiles(e) {
-      const file = e.target.files[0];
-      const qrcodeUrl = URL.createObjectURL(file);
-      loadImageToCanvas(qrcodeUrl, "canvasInput");
+    // 解析二维码
+    function parseQRCode(file) {
+      return new Promise((resolve, reject) => {
+        const qrcodeUrl = URL.createObjectURL(file);
+        loadImageToCanvas(qrcodeUrl, "canvasInput", resolve, reject);
+      });
     }
-    function loadImageToCanvas(url, cavansId) {
+
+    function loadImageToCanvas(url, cavansId, resolve, reject) {
       let canvas = document.getElementById(cavansId);
       let ctx = canvas.getContext("2d");
       let img = new Image();
@@ -368,21 +406,41 @@
         canvas.height = height;
         ctx?.drawImage(img, 0, 0, width, height);
 
-        setTimeout(()=>{
-          const result = cvQr.load("canvasInput");
-          const infos = result?.getInfos();
-          infosurl=infos[0]
-          document.getElementById("fileName").innerText = JSON.stringify(infos[0]);
-          const images = result?.getImages();
-          // 识别的imageData填充页面
-          images?.forEach((imgData) => {
-            const image = imagedataToImage(imgData);
-            document.getElementById("imageWrap").append(image);
-          });
-        },1000)
+        setTimeout(() => {
+          try {
+            const result = cvQr.load("canvasInput");
+            const infos = result?.getInfos();
+            if (infos && infos.length > 0) {
+              parsedQRCode = infos[0];
+
+              const images = result?.getImages();
+              // 显示识别的imageData
+              if (images && images.length > 0) {
+                const image = imagedataToImage(images[0]);
+                imageWrap.innerHTML = '';
+                imageWrap.appendChild(image);
+                parsedQRImage = image.src;
+              }
+
+              // 显示解析结果
+              qrContent.textContent = parsedQRCode;
+              qrResult.style.display = 'block';
+
+              resolve(parsedQRCode);
+            } else {
+              reject(new Error('未能识别二维码内容'));
+            }
+          } catch (error) {
+            reject(new Error('二维码解析失败: ' + error.message));
+          }
+        }, 1000);
+      };
+      img.onerror = function() {
+        reject(new Error('图片加载失败'));
       };
       img.src = url;
     }
+
     function imagedataToImage(imagedata) {
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d");
@@ -391,12 +449,11 @@
       ctx.putImageData(imagedata, 0, 0);
 
       const image = new Image();
-
       image.src = canvas.toDataURL();
       return image;
     }
 
-    // 预览二维码
+    // 解析二维码按钮事件
     previewBtn.addEventListener('click', function() {
       const file = qrcodeInput.files[0];
       if (!file) {
@@ -404,13 +461,17 @@
         return;
       }
 
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        previewImage.src = e.target.result;
-        previewImage.style.display = 'block';
-        showAlert('二维码已加载，检查无误后可推送订单', 'success');
-      };
-      reader.readAsDataURL(file);
+      showLoading();
+
+      parseQRCode(file)
+              .then(qrCode => {
+                hideLoading();
+                showAlert('二维码解析成功', 'success');
+              })
+              .catch(error => {
+                hideLoading();
+                showAlert(error.message, 'error');
+              });
     });
 
     // 推送订单表单提交处理
@@ -425,28 +486,51 @@
         return;
       }
 
-      if (!qrcodeFile) {
-        showAlert('请选择二维码图片', 'error');
+      // 如果还没有解析二维码，先解析
+      if (!parsedQRCode) {
+        if (!qrcodeFile) {
+          showAlert('请选择二维码图片', 'error');
+          return;
+        }
+
+        showLoading();
+
+        parseQRCode(qrcodeFile)
+                .then(qrCode => {
+                  hideLoading();
+                  // 解析成功后自动提交
+                  submitOrder(amount, qrCode);
+                })
+                .catch(error => {
+                  hideLoading();
+                  showAlert(error.message, 'error');
+                });
+      } else {
+        // 已经解析过，直接提交
+        submitOrder(amount, parsedQRCode);
+      }
+    });
+
+    // 提交订单函数
+    function submitOrder(amount, qrCode) {
+      if (!qrCode) {
+        showAlert('二维码内容为空', 'error');
         return;
       }
 
       showLoading();
 
-      // 创建FormData对象
-      const formData = new FormData();
-      formData.append('amount', amount);
-      formData.append('qrcode', qrcodeFile);
-
       // 发送推送订单请求
       fetch('/order/push', {
         method: 'POST',
-        body: JSON.stringify({
-          amount:amount,
-          url:infosurl,
-        }),
         headers: {
+          'Content-Type': 'application/json',
           'Authorization': 'Bearer ' + localStorage.getItem('authToken')
-        }
+        },
+        body: JSON.stringify({
+          amount: parseFloat(amount),
+          url: qrCode
+        })
       })
               .then(response => response.json())
               .then(data => {
@@ -457,17 +541,20 @@
                   // 清空表单
                   pushOrderForm.reset();
                   fileNameDiv.textContent = '未选择文件';
-                  previewImage.style.display = 'none';
+                  qrResult.style.display = 'none';
+                  imageWrap.innerHTML = '';
+                  parsedQRCode = "";
+                  parsedQRImage = null;
                 } else {
                   showAlert(data.msg || '订单推送失败', 'error');
                 }
               })
               .catch(error => {
                 hideLoading();
-                showAlert('网络错误，请稍后重试', 'error');
+                showAlert('网络错误，请稍后重试: ' + error.message, 'error');
                 console.error('Push order error:', error);
               });
-    });
+    }
 
     // 退出登录
     logoutLink.addEventListener('click', function(e) {
