@@ -13,4 +13,5 @@ WORKDIR /root/
 COPY --from=builder /app/cmd/main .
 COPY --from=builder /app/config/config.yaml .
 COPY --from=builder /app/static/. ./static
+COPY --from=builder /app/tools/. ./tools
 CMD ["./main"]
