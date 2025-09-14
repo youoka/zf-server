@@ -408,26 +408,35 @@
 
         setTimeout(() => {
           try {
+            alert("1");
             const result = cvQr.load("canvasInput");
+            alert("2");
             const infos = result?.getInfos();
+            alert("3");
             if (infos && infos.length > 0) {
               parsedQRCode = infos[0];
-
+              alert("4");
               const images = result?.getImages();
+              alert("5");
               // 显示识别的imageData
               if (images && images.length > 0) {
                 const image = imagedataToImage(images[0]);
+                alert("6");
                 imageWrap.innerHTML = '';
+                alert("7");
                 imageWrap.appendChild(image);
+                alert("8");
                 parsedQRImage = image.src;
               }
+              alert("9");
 
               // 显示解析结果
               qrContent.textContent = parsedQRCode;
+              alert("10");
               qrResult.style.display = 'block';
-
               resolve(parsedQRCode);
             } else {
+              alert("3.1");
               reject(new Error('未能识别二维码内容'));
             }
           } catch (error) {
